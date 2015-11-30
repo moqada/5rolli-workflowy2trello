@@ -1,7 +1,7 @@
 {
   "name": "5rolli-workflowy2trello",
   "description": "Convert Workflowy list to Trello cards for 5ROLLI",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "author": "moqada <moqada@gmail.com>",
   "bin": {
     "5rolliw2t": "lib/cli.js"
