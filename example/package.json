@@ -1,0 +1,14 @@
+{
+  "name": "example",
+  "version": "0.0.0",
+  "description": "example",
+  "private": true,
+  "scripts": {
+    "5rolliw2t": "5rolliw2t"
+  },
+  "author": "moqada <moqada@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "trello-task-importer": "file:///Users/moqada/work/projects/moqada/trello-task-importer"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "apiToken": "TRELLO_API_TOKEN",
+  "apiKey": "TRELLO_API_KEY",
+  "boardId": "TRELLO_BOARD_ID",
+  "inboxListName": "inbox",
+  "labels": {
+    "issue": "issue",
+    "open": "open",
+    "waiting": "waiting"
+  },
+  "labelAliases": {
+    "w": "waiting"
+  }
+}

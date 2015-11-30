@@ -1,0 +1,73 @@
+{
+  "name": "5rolli-workflowy2trello",
+  "description": "Convert Workflowy list to Trello cards for 5ROLLI",
+  "version": "0.0.0",
+  "author": "moqada <moqada@gmail.com>",
+  "bin": {
+    "5rolliw2t": "lib/cli.js"
+  },
+  "bugs": {
+    "url": "https://github.com/moqada/5rolli-workflowy2trello/issues"
+  },
+  "dependencies": {
+    "node-trello": "^1.1.2",
+    "opml-to-json": "0.0.3",
+    "update-notifier": "^0.5.0",
+    "yargs": "^3.30.0"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.2.0",
+    "babel-core": "^6.2.1",
+    "babel-plugin-add-module-exports": "^0.1.1",
+    "babel-plugin-espower": "^2.0.0",
+    "babel-preset-es2015": "^6.1.18",
+    "chokidar-cli": "^1.2.0",
+    "codecov.io": "^0.1.6",
+    "esdoc": "^0.4.3",
+    "eslint": "^1.10.1",
+    "eslint-config-moqada": "^9.0.0",
+    "gh-pages": "^0.5.0",
+    "isparta": "^4.0.0",
+    "mocha": "^2.3.4",
+    "npm-run-all": "^1.3.2",
+    "power-assert": "^1.2.0"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "homepage": "https://github.com/moqada/5rolli-workflowy2trello#readme",
+  "keywords": [
+    "5rolli",
+    "cli",
+    "console",
+    "trello",
+    "workflowy"
+  ],
+  "license": "MIT",
+  "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moqada/5rolli-workflowy2trello.git"
+  },
+  "scripts": {
+    "build": "babel src --out-dir lib",
+    "codecov": "cat coverage/lcov.info | codecov",
+    "deploy": "npm-run-all doc gh-pages",
+    "doc": "esdoc -c esdoc.json",
+    "gh-pages": "gh-pages -d doc",
+    "lint": "eslint --cache {src,test}",
+    "postpublish": "npm run deploy",
+    "prebuild": "rm -rf lib",
+    "predoc": "rm -rf doc",
+    "prepublish": "git diff --exit-code && npm run --if-present build",
+    "pretest": "rm -rf coverage",
+    "test": "npm-run-all lint test:coverage",
+    "test:coverage": "babel-node $(npm bin)/isparta cover --report text --report html --report lcovonly _mocha -- test/{**/,}*spec.js",
+    "test:example": "cd example && npm i && npm run 5rolliw2t -- --help",
+    "watch": "npm-run-all --parallel watch:*",
+    "watch:lint": "chokidar src test -c 'npm run -s lint'",
+    "watch:src": "babel --out-dir=lib --watch src",
+    "watch:test": "mocha --watch test/{**/,}*spec.js"
+  }
+}
