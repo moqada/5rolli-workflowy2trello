@@ -1,6 +1,7 @@
 .DS_Store
 npm-debug.log
 
+.5rolliw2t.json
 .eslintcache
 coverage/
 doc/
