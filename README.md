@@ -8,7 +8,7 @@
 [![DevDependency Status][daviddm-dev-image]][daviddm-dev-url]
 [![License][license-image]][license-url]
 
-Convert Workflowy list to Trello cards for 5ROLLI
+Convert Workflowy list to Trello cards for [5ROLLI](https://github.com/tongariboyz/5rolli).
 
 
 ## Installation
@@ -19,6 +19,11 @@ npm install -g 5rolli-workflowy2trello
 
 
 ## Usage
+
+1. Export OPML file from Workflowy
+2. Put `.5rolliw2t.json` to current directory (copy from [`./.5rolliw2t.example.json``](./.5rolliw2t.example.json))
+3. Execute dry-run: `5rolliw2t ./path/to/opml -o cards.json --dry-run --send-trello`
+4. Execute to Register cards: `5rolliw2t ./path/to/opml -o cards.json --send-trello`
 
 ```
 Usage: 5rolliw2t [options] <OPML_FILE>
