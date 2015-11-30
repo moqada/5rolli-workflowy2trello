@@ -1,0 +1,1469 @@
+[
+  {
+    "__docId__": 0,
+    "kind": "file",
+    "static": true,
+    "variation": null,
+    "name": "src/cli.js",
+    "memberof": null,
+    "longname": "src/cli.js",
+    "access": null,
+    "description": null,
+    "lineNumber": 4,
+    "content": "#!/usr/bin/env node\n\n/* eslint global-require: 0 */\nimport fs from 'fs';\n\nimport opmlToJSON from 'opml-to-json';\nimport updateNotifier from 'update-notifier';\nimport yargs from 'yargs';\n\nimport {\n  sendTrello,\n  storiesToCards,\n  opmlToStories\n} from './';\nimport pkg from '../package.json';\n\n\nupdateNotifier({pkg}).notify();\n\nconst argv = yargs\n  .usage('Usage: 5rolliw2t [options] <OPML_FILE>')\n  .example('5rolliw2t /path/to/file.opml', 'Output cards json to stdout')\n  .example('5rolliw2t /path/to/file.opml -o /path/to/file.json', 'Output cards json to file')\n  .example('5rolliw2t /path/to/file.opml --send-trello', 'Register cards to Trello')\n  .option('c', {\n    alias: 'config',\n    description: 'Set config file path',\n    type: 'string',\n    'default': './.5rolliw2t.json'\n  })\n  .option('f', {\n    alias: 'format',\n    description: 'Set output format',\n    choices: ['trello', 'story'],\n    'default': 'trello'\n  })\n  .option('o', {\n    alias: 'output',\n    description: 'Set output file path',\n    type: 'string'\n  })\n  .option('send-trello', {\n    description: 'Send cards to Trello',\n    type: 'boolean'\n  })\n  .option('dry-run', {\n    description: 'Set flag for dryrun to send-trello',\n    type: 'boolean'\n  })\n  .help('help')\n  .demand(1)\n  .version(pkg.version)\n  .detectLocale(false)\n  .wrap(null)\n  .strict()\n  .argv;\n\n\n/**\n * format JSON\n *\n * @param {Object} json json\n * @return {string}\n */\nfunction formatJSON(json) {\n  return JSON.stringify(json, null, 2);\n}\n\n\n/**\n * execute\n *\n * @param {Object} args yargs object\n */\nfunction execute(args) {\n  const opml = fs.readFileSync(args._[0]);\n  const config = loadConfig(args.config);\n  if (args.sendTrello && args.format === 'story') {\n    throw new Error('send-trello and format=story cannot specify together');\n  }\n  opmlToJSON(opml.toString(), (err, json) => {\n    if (err) {\n      throw err;\n    }\n    let promise = opmlToStories(json);\n    if (args.format === 'trello') {\n      promise = promise.then(stories => {\n        return storiesToCards(stories, config);\n      }).catch(e => {\n        console.error(e);\n      });\n    }\n    if (args.sendTrello) {\n      promise = promise.then(cards => {\n        return Promise.all([sendTrello(cards, config, args.dryRun), cards]);\n      }).then(res => {\n        if (args.dryRun) {\n          console.log(formatJSON(res[0].validCards));\n        } else {\n          console.log(formatJSON(res[0].responses));\n        }\n        return res[0];\n      });\n    }\n    if (args.output) {\n      promise = promise.then(results => {\n        const data = formatJSON(results);\n        return new Promise((resolve, reject) => {\n          fs.writeFile(args.output, data, e => {\n            if (e) {\n              reject(e);\n            }\n            resolve(true);\n          });\n        });\n      });\n    } else {\n      promise = promise.then(results => {\n        console.log(formatJSON(results));\n        return results;\n      });\n    }\n    promise.then(() => process.exit()).catch(errs => {\n      errs.forEach(console.error);\n      process.exit(1);\n    });\n  });\n}\n\n\n/**\n * load config file\n *\n * @param {string} filePath config file path\n * @return {Object}\n */\nfunction loadConfig(filePath) {\n  const data = fs.readFileSync(filePath);\n  return JSON.parse(data);\n}\n\n\ntry {\n  execute(argv);\n} catch (e) {\n  console.error(e);\n  process.exit(1);\n}\n"
+  },
+  {
+    "__docId__": 1,
+    "kind": "variable",
+    "static": true,
+    "variation": null,
+    "name": "argv",
+    "memberof": "src/cli.js",
+    "longname": "src/cli.js~argv",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/cli.js",
+    "importStyle": null,
+    "description": null,
+    "lineNumber": 20,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 2,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "formatJSON",
+    "memberof": "src/cli.js",
+    "longname": "src/cli.js~formatJSON",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/cli.js",
+    "importStyle": null,
+    "description": "format JSON",
+    "lineNumber": 65,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "json",
+        "description": "json"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "string"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 3,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "execute",
+    "memberof": "src/cli.js",
+    "longname": "src/cli.js~execute",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/cli.js",
+    "importStyle": null,
+    "description": "execute",
+    "lineNumber": 75,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "args",
+        "description": "yargs object"
+      }
+    ],
+    "generator": false
+  },
+  {
+    "__docId__": 4,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "loadConfig",
+    "memberof": "src/cli.js",
+    "longname": "src/cli.js~loadConfig",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/cli.js",
+    "importStyle": null,
+    "description": "load config file",
+    "lineNumber": 137,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "filePath",
+        "description": "config file path"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Object"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 5,
+    "kind": "file",
+    "static": true,
+    "variation": null,
+    "name": "src/index.js",
+    "memberof": null,
+    "longname": "src/index.js",
+    "access": null,
+    "description": null,
+    "lineNumber": 1,
+    "content": "import Trello from 'node-trello';\n\n\n/**\n * Parse Error\n */\nclass ParseError extends Error {\n  /**\n   * constructor\n   *\n   * @param {string} type error type\n   * @param {string} message error message\n   * @param {string} text raw text\n   */\n  constructor({type, message, text}) {\n    super(`(${type}): ${message} \"${text}\"`);\n    this.name = this.constructor.name;\n    this.type = type;\n    this.text = text;\n    Error.captureStackTrace(this, this.constructor.name);\n  }\n}\n\n\n/**\n * Create name for Trello card\n *\n * @param {Object} story story\n * @return {string}\n */\nfunction createCardName(story) {\n  const items = [`${story.id}:`];\n  if (story.times) {\n    const timeStr = [story.times.spent, story.times.es50, story.times.es90]\n      .filter(i => i !== undefined)\n      .map(i => i.toString())\n      .join('/');\n    if (timeStr) {\n      items.push(`(${timeStr})`);\n    }\n  }\n  items.push(`${story.title}`);\n  if (story.parentId) {\n    items.push(`#${story.parentId}`);\n  }\n  if (story.dependIds.length > 0) {\n    items.push(`${story.dependIds.map(i => `&${i}`).join(' ')}`);\n  }\n  return items.join(' ');\n}\n\n\n/**\n * is Story\n *\n * @param {string} text text\n * @return {boolean}\n */\nfunction isStory(text) {\n  return /^#(\\d+)_/.test(text);\n}\n\n\n/**\n * Parse text to times\n *\n * @param {string} text title text\n * @return {Object}\n */\nfunction parseTextToTimes(text) {\n  const match = /(?:\\((?:(\\d+)\\/)?(\\d+)\\/(\\d+)\\)\\s+)?(.*)$/.exec(text);\n  if (match) {\n    const [spent, es50, es90, body] = match.slice(1);\n    return {\n      body: body.trim(),\n      times: {\n        spent: spent && Number.parseInt(spent, 10),\n        es50: es50 && Number.parseInt(es50, 10),\n        es90: es90 && Number.parseInt(es90, 10)\n      }\n    };\n  }\n  return {\n    body: text.trim(),\n    times: null\n  };\n}\n\n\n/**\n * Parse text to labels\n *\n * must to use after parseTextToTimes()\n *\n * @param {string} text title text\n * @return {Object}\n */\nfunction parseTextToLabels(text) {\n  const matches = /^(?:\\[(.+)\\]\\s+)?(.*)$/.exec(text);\n  if (!matches) {\n    return {\n      body: text.trim(),\n      labels: []\n    };\n  }\n  const [labels, body] = matches.slice(1);\n  return {\n    body: body.trim(),\n    labels: labels ? labels.split(',').map(l => l.trim()).filter(l => l) : []\n  };\n}\n\n\n/**\n * Parse text to raw story object\n *\n * @param {string} text text\n * @return {Object}\n */\nfunction parseTextToStory(text) {\n  const matches = /^#(\\d+)_\\s+(.+)$/.exec(text);\n  if (matches) {\n    const [id, content] = matches.slice(1);\n    const regex = /#(\\d+)_/g;\n    const idx = content.search(regex);\n    const title = idx >= 0 ? content.slice(0, idx).trim() : content;\n    const {body, times} = parseTextToTimes(title);\n    const ret = parseTextToLabels(body);\n    return {\n      id,\n      title: ret.body,\n      times,\n      labels: ret.labels,\n      dependIds: (content.match(regex) || []).map(i => i.match(/\\d+/)[0])\n    };\n  }\n  return {\n    id: null,\n    title: text,\n    times: null,\n    labels: [],\n    dependIds: []\n  };\n}\n\n\n/**\n * Parse Item to Story\n *\n * @param {Object} item item\n * @return {Array} current story and descendants stories\n */\nfunction parseOpmlItem(item) {\n  const parsedItem = parseTextToStory(item.text);\n  if (!parsedItem.id && isStory(item.text)) {\n    throw new ParseError({\n      type: 'item',\n      message: 'invalid',\n      text: item.text\n    });\n  }\n  const children = item.children || [];\n  let descendants = [];\n  let descriptions = [];\n  children.forEach(child => {\n    const [parsedChild, ds] = parseOpmlItem(child);\n    if (parsedChild.id) {\n      parsedChild.parentId = parsedItem.id;\n      descendants = descendants.concat([parsedChild]).concat(ds);\n    } else {\n      descriptions = descriptions.concat(\n        [`- ${parsedChild.title}`]\n      ).concat(\n        parsedChild.description.split('\\n').filter(d => d).map(d => `  ${d}`)\n      );\n    }\n  });\n  const ret = Object.assign({}, parsedItem, {\n    description: descriptions.join('\\n')\n  });\n  return [ret, descendants];\n}\n\n\n/**\n * opmlToStories\n *\n * @param {Object} opmlJSON opml object\n * @return {Promise<Object[], ParseError[]>}\n */\nexport function opmlToStories(opmlJSON) {\n  const errors = [];\n  const stories = opmlJSON.children.reduce((results, item) => {\n    try {\n      const [parsed, ds] = parseOpmlItem(item);\n      return results.concat([parsed]).concat(ds);\n    } catch (e) {\n      if (e.type) {\n        errors.push(e);\n      } else {\n        throw e;\n      }\n    }\n    return results;\n  }, []);\n  if (errors.length) {\n    return Promise.reject(errors);\n  }\n  return Promise.resolve(stories);\n}\n\n\n/**\n * Stories To Cards\n *\n * @param {Object[]} stories stories\n * @param {Object} config config\n * @return {Promise<Object[], ParseError[]>}\n */\nexport function storiesToCards(stories, config) {\n  const errors = [];\n  const cards = stories.map(story => {\n    let labels = story.parentId ? [] : [config.labels.issue];\n    labels = labels.concat(story.labels.map(l => config.labelAliases[l]));\n    return {\n      name: createCardName(story),\n      desc: story.description,\n      labels: labels.concat(config.labels.open)\n    };\n  });\n  if (errors.length) {\n    return Promise.reject(errors, cards);\n  }\n  return Promise.resolve(cards);\n}\n\n\n/**\n * fetch Board data from Trello\n *\n * @param {Object} trello Trello instance\n * @param {string} boardId Trello board ID\n * @return {Promise<Object, Error>}\n */\nfunction fetchBoardInfo(trello, boardId) {\n  return new Promise((resolve, reject) => {\n    trello.get(`/1/boards/${boardId}`, {\n      labels: 'all',\n      lists: 'open'\n    }, (err, data) => {\n      if (err) {\n        return reject(err);\n      }\n      resolve(data);\n    });\n  });\n}\n\n\n/**\n * Post Card to Trello\n *\n * @param {Object} trello Trello instance\n * @param {Object} card card\n * @return {Promise<Object, Error>}\n */\nfunction postCard(trello, card) {\n  return new Promise((resolve, reject) => {\n    trello.post(`/1/cards`, card, (err, data) => {\n      if (err) {\n        return reject(err);\n      }\n      resolve(data);\n    });\n  });\n}\n\n\n/**\n * Register cards to Trello\n *\n * @param {Object[]} cards card list\n * @param {Object} config config\n * @param {boolean} dryRun flag\n * @return {Promise<Object, Error>}\n */\nexport function sendTrello(cards, config, dryRun) {\n  const trello = new Trello(config.apiKey, config.apiToken);\n  const promise = fetchBoardInfo(trello, config.boardId).then(board => {\n    const labelMap = board.labels.reduce((m, l) => {\n      if (!l.name) {\n        return m;\n      }\n      return Object.assign({}, m, {[l.name]: l.id});\n    }, {});\n    const inboxList = board.lists.find(l => l.name === config.inboxListName);\n    return cards.map(c => {\n      const idLabels = c.labels.map(l => labelMap[l]);\n      if (idLabels.indexOf(undefined) >= 0) {\n        throw new Error(`Label id not found: ${c.labels}`);\n      }\n      return Object.assign({}, c, {\n        due: null,\n        urlSource: null,\n        idLabels: idLabels.join(','),\n        idList: inboxList.id,\n        labels: undefined\n      });\n    });\n  });\n  if (dryRun) {\n    return promise.then(validCards => {\n      return {\n        validCards,\n        responses: []\n      };\n    });\n  }\n  return promise.then(validCards => {\n    const results = [];\n    let pr = Promise.resolve();\n    validCards.forEach(c => {\n      pr = pr.then(res => {\n        results.push(res);\n        return postCard(trello, c);\n      });\n    });\n    return pr.then(() => {\n      return {\n        validCards,\n        responses: results\n      };\n    });\n  });\n}\n"
+  },
+  {
+    "__docId__": 6,
+    "kind": "class",
+    "static": true,
+    "variation": null,
+    "name": "ParseError",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~ParseError",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": null,
+    "description": "Parse Error",
+    "lineNumber": 7,
+    "interface": false,
+    "extends": [
+      "Error"
+    ]
+  },
+  {
+    "__docId__": 7,
+    "kind": "constructor",
+    "static": false,
+    "variation": null,
+    "name": "constructor",
+    "memberof": "src/index.js~ParseError",
+    "longname": "src/index.js~ParseError#constructor",
+    "access": null,
+    "description": "constructor",
+    "lineNumber": 15,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "type",
+        "description": "error type"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "message",
+        "description": "error message"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "text",
+        "description": "raw text"
+      }
+    ],
+    "generator": false
+  },
+  {
+    "__docId__": 8,
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "name",
+    "memberof": "src/index.js~ParseError",
+    "longname": "src/index.js~ParseError#name",
+    "access": null,
+    "description": null,
+    "lineNumber": 17,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 9,
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "type",
+    "memberof": "src/index.js~ParseError",
+    "longname": "src/index.js~ParseError#type",
+    "access": null,
+    "description": null,
+    "lineNumber": 18,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 10,
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "text",
+    "memberof": "src/index.js~ParseError",
+    "longname": "src/index.js~ParseError#text",
+    "access": null,
+    "description": null,
+    "lineNumber": 19,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 11,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "createCardName",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~createCardName",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": null,
+    "description": "Create name for Trello card",
+    "lineNumber": 31,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "story",
+        "description": "story"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "string"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 12,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "isStory",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~isStory",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": null,
+    "description": "is Story",
+    "lineNumber": 59,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "text",
+        "description": "text"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "boolean"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 13,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "parseTextToTimes",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~parseTextToTimes",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": null,
+    "description": "Parse text to times",
+    "lineNumber": 70,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "text",
+        "description": "title text"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Object"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 14,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "parseTextToLabels",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~parseTextToLabels",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": null,
+    "description": "Parse text to labels\n\nmust to use after parseTextToTimes()",
+    "lineNumber": 98,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "text",
+        "description": "title text"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Object"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 15,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "parseTextToStory",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~parseTextToStory",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": null,
+    "description": "Parse text to raw story object",
+    "lineNumber": 120,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "text",
+        "description": "text"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Object"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 16,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "parseOpmlItem",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~parseOpmlItem",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": null,
+    "description": "Parse Item to Story",
+    "lineNumber": 153,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "item",
+        "description": "item"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Array"
+      ],
+      "spread": false,
+      "description": "current story and descendants stories"
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 17,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "opmlToStories",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~opmlToStories",
+    "access": null,
+    "export": true,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": "{opmlToStories}",
+    "description": "opmlToStories",
+    "lineNumber": 191,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "opmlJSON",
+        "description": "opml object"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Promise<Object[], ParseError[]>"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 18,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "storiesToCards",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~storiesToCards",
+    "access": null,
+    "export": true,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": "{storiesToCards}",
+    "description": "Stories To Cards",
+    "lineNumber": 220,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object[]"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "stories",
+        "description": "stories"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "config",
+        "description": "config"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Promise<Object[], ParseError[]>"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 19,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "fetchBoardInfo",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~fetchBoardInfo",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": null,
+    "description": "fetch Board data from Trello",
+    "lineNumber": 245,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "trello",
+        "description": "Trello instance"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "boardId",
+        "description": "Trello board ID"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Promise<Object, Error>"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 20,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "postCard",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~postCard",
+    "access": null,
+    "export": false,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": null,
+    "description": "Post Card to Trello",
+    "lineNumber": 267,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "trello",
+        "description": "Trello instance"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "card",
+        "description": "card"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Promise<Object, Error>"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 21,
+    "kind": "function",
+    "static": true,
+    "variation": null,
+    "name": "sendTrello",
+    "memberof": "src/index.js",
+    "longname": "src/index.js~sendTrello",
+    "access": null,
+    "export": true,
+    "importPath": "5rolli-workflowy2trello/src/index.js",
+    "importStyle": "{sendTrello}",
+    "description": "Register cards to Trello",
+    "lineNumber": 287,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object[]"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "cards",
+        "description": "card list"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "config",
+        "description": "config"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "boolean"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "dryRun",
+        "description": "flag"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Promise<Object, Error>"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "generator": false
+  },
+  {
+    "__docId__": 23,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Infinity",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Infinity",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Infinity",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 24,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "NaN",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/NaN",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~NaN",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 25,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "undefined",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~undefined",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 26,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "null",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/null",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~null",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 27,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Object",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Object",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 28,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "object",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~object",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 29,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Function",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Function",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 30,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "function",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~function",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 31,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Boolean",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Boolean",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 32,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "boolean",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~boolean",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 33,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Symbol",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Symbol",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 34,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Error",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Error",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 35,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "EvalError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/EvalError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~EvalError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 36,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "InternalError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/InternalError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~InternalError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 37,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "RangeError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RangeError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~RangeError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 38,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "ReferenceError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ReferenceError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~ReferenceError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 39,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "SyntaxError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~SyntaxError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 40,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "TypeError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~TypeError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 41,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "URIError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/URIError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~URIError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 42,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Number",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Number",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 43,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "number",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~number",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 44,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Date",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Date",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 45,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "String",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~String",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 46,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "string",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~string",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 47,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "RegExp",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~RegExp",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 48,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 49,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Int8Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Int8Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 50,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Uint8Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Uint8Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 51,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Uint8ClampedArray",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8ClampedArray",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Uint8ClampedArray",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 52,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Int16Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Int16Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 53,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Uint16Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint16Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Uint16Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 54,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Int32Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Int32Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 55,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Uint32Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Uint32Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 56,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Float32Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Float32Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 57,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Float64Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Float64Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 58,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Map",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Map",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 59,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Set",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Set",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 60,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "WeakMap",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~WeakMap",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 61,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "WeakSet",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~WeakSet",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 62,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "ArrayBuffer",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~ArrayBuffer",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 63,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "DataView",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~DataView",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 64,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "JSON",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~JSON",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 65,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Promise",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Promise",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 66,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Generator",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Generator",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 67,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "GeneratorFunction",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/GeneratorFunction",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~GeneratorFunction",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 68,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Reflect",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Reflect",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 69,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Proxy",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Proxy",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 71,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "CanvasRenderingContext2D",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~CanvasRenderingContext2D",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 72,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "DocumentFragment",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~DocumentFragment",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 73,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Element",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Element",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~Element",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 74,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Event",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Event",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~Event",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 75,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Node",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Node",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~Node",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 76,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "NodeList",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/NodeList",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~NodeList",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 77,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "XMLHttpRequest",
+    "externalLink": "https://developer.mozilla.org/en/docs/Web/API/XMLHttpRequest",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~XMLHttpRequest",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 78,
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "AudioContext",
+    "externalLink": "https://developer.mozilla.org/en/docs/Web/API/AudioContext",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~AudioContext",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 79,
+    "kind": "testFile",
+    "static": true,
+    "variation": null,
+    "name": "test/index-spec.js",
+    "memberof": null,
+    "longname": "test/index-spec.js",
+    "access": null,
+    "description": null,
+    "lineNumber": 1,
+    "content": "import assert from 'power-assert';\nimport * as lib from '../src';\n\ndescribe('5rolliw2t', () => {\n  it('is defined', () => {\n    assert(lib);\n  });\n});\n"
+  },
+  {
+    "__docId__": 80,
+    "kind": "testDescribe",
+    "static": true,
+    "variation": null,
+    "name": "describe0",
+    "testId": 0,
+    "memberof": "test/index-spec.js",
+    "testDepth": 0,
+    "longname": "test/index-spec.js~describe0",
+    "access": null,
+    "description": "5rolliw2t",
+    "lineNumber": 4
+  },
+  {
+    "__docId__": 81,
+    "kind": "testIt",
+    "static": true,
+    "variation": null,
+    "name": "it1",
+    "testId": 1,
+    "memberof": "test/index-spec.js~describe0",
+    "testDepth": 1,
+    "longname": "test/index-spec.js~describe0.it1",
+    "access": null,
+    "description": "is defined",
+    "lineNumber": 5
+  }
+]

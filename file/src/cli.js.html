@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <base data-ice="baseUrl" href="../../">
+  <title data-ice="title">src/cli.js | API Document</title>
+  <link type="text/css" rel="stylesheet" href="css/style.css">
+  <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
+  <script src="script/prettify/prettify.js"></script>
+  
+  
+  <script src="script/manual.js"></script>
+</head>
+<body class="layout-container" data-ice="rootContainer">
+
+<header>
+  <a href="./">Home</a>
+  
+  <a href="identifiers.html">Reference</a>
+  <a href="source.html">Source</a>
+  <a href="test.html" data-ice="testLink">Test</a>
+  <a data-ice="repoURL" href="https://github.com/moqada/5rolli-workflowy2trello.git" class="repo-url-github">Repository</a>
+  <div class="search-box">
+  <span>
+    <img src="./image/search.png">
+    <span class="search-input-edge"></span><input class="search-input"><span class="search-input-edge"></span>
+  </span>
+    <ul class="search-result"></ul>
+  </div>
+</header>
+
+<nav class="navigation" data-ice="nav"><div>
+  <ul>
+    
+  <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-opmlToStories">opmlToStories</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-sendTrello">sendTrello</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-storiesToCards">storiesToCards</a></span></span></li>
+</ul>
+</div>
+</nav>
+
+<div class="content" data-ice="content"><h1 data-ice="title">src/cli.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">#!/usr/bin/env node
+
+/* eslint global-require: 0 */
+import fs from &apos;fs&apos;;
+
+import opmlToJSON from &apos;opml-to-json&apos;;
+import updateNotifier from &apos;update-notifier&apos;;
+import yargs from &apos;yargs&apos;;
+
+import {
+  sendTrello,
+  storiesToCards,
+  opmlToStories
+} from &apos;./&apos;;
+import pkg from &apos;../package.json&apos;;
+
+
+updateNotifier({pkg}).notify();
+
+const argv = yargs
+  .usage(&apos;Usage: 5rolliw2t [options] &lt;OPML_FILE&gt;&apos;)
+  .example(&apos;5rolliw2t /path/to/file.opml&apos;, &apos;Output cards json to stdout&apos;)
+  .example(&apos;5rolliw2t /path/to/file.opml -o /path/to/file.json&apos;, &apos;Output cards json to file&apos;)
+  .example(&apos;5rolliw2t /path/to/file.opml --send-trello&apos;, &apos;Register cards to Trello&apos;)
+  .option(&apos;c&apos;, {
+    alias: &apos;config&apos;,
+    description: &apos;Set config file path&apos;,
+    type: &apos;string&apos;,
+    &apos;default&apos;: &apos;./.5rolliw2t.json&apos;
+  })
+  .option(&apos;f&apos;, {
+    alias: &apos;format&apos;,
+    description: &apos;Set output format&apos;,
+    choices: [&apos;trello&apos;, &apos;story&apos;],
+    &apos;default&apos;: &apos;trello&apos;
+  })
+  .option(&apos;o&apos;, {
+    alias: &apos;output&apos;,
+    description: &apos;Set output file path&apos;,
+    type: &apos;string&apos;
+  })
+  .option(&apos;send-trello&apos;, {
+    description: &apos;Send cards to Trello&apos;,
+    type: &apos;boolean&apos;
+  })
+  .option(&apos;dry-run&apos;, {
+    description: &apos;Set flag for dryrun to send-trello&apos;,
+    type: &apos;boolean&apos;
+  })
+  .help(&apos;help&apos;)
+  .demand(1)
+  .version(pkg.version)
+  .detectLocale(false)
+  .wrap(null)
+  .strict()
+  .argv;
+
+
+/**
+ * format JSON
+ *
+ * @param {Object} json json
+ * @return {string}
+ */
+function formatJSON(json) {
+  return JSON.stringify(json, null, 2);
+}
+
+
+/**
+ * execute
+ *
+ * @param {Object} args yargs object
+ */
+function execute(args) {
+  const opml = fs.readFileSync(args._[0]);
+  const config = loadConfig(args.config);
+  if (args.sendTrello &amp;&amp; args.format === &apos;story&apos;) {
+    throw new Error(&apos;send-trello and format=story cannot specify together&apos;);
+  }
+  opmlToJSON(opml.toString(), (err, json) =&gt; {
+    if (err) {
+      throw err;
+    }
+    let promise = opmlToStories(json);
+    if (args.format === &apos;trello&apos;) {
+      promise = promise.then(stories =&gt; {
+        return storiesToCards(stories, config);
+      }).catch(e =&gt; {
+        console.error(e);
+      });
+    }
+    if (args.sendTrello) {
+      promise = promise.then(cards =&gt; {
+        return Promise.all([sendTrello(cards, config, args.dryRun), cards]);
+      }).then(res =&gt; {
+        if (args.dryRun) {
+          console.log(formatJSON(res[0].validCards));
+        } else {
+          console.log(formatJSON(res[0].responses));
+        }
+        return res[0];
+      });
+    }
+    if (args.output) {
+      promise = promise.then(results =&gt; {
+        const data = formatJSON(results);
+        return new Promise((resolve, reject) =&gt; {
+          fs.writeFile(args.output, data, e =&gt; {
+            if (e) {
+              reject(e);
+            }
+            resolve(true);
+          });
+        });
+      });
+    } else {
+      promise = promise.then(results =&gt; {
+        console.log(formatJSON(results));
+        return results;
+      });
+    }
+    promise.then(() =&gt; process.exit()).catch(errs =&gt; {
+      errs.forEach(console.error);
+      process.exit(1);
+    });
+  });
+}
+
+
+/**
+ * load config file
+ *
+ * @param {string} filePath config file path
+ * @return {Object}
+ */
+function loadConfig(filePath) {
+  const data = fs.readFileSync(filePath);
+  return JSON.parse(data);
+}
+
+
+try {
+  execute(argv);
+} catch (e) {
+  console.error(e);
+  process.exit(1);
+}
+</code></pre>
+
+</div>
+
+<footer class="footer">
+  Generated by <a href="https://esdoc.org">ESDoc<span data-ice="esdocVersion">(0.4.3)</span></a>
+</footer>
+
+<script src="script/search_index.js"></script>
+<script src="script/search.js"></script>
+<script src="script/pretty-print.js"></script>
+<script src="script/inherited-summary.js"></script>
+<script src="script/test-summary.js"></script>
+<script src="script/inner-link.js"></script>
+<script src="script/patch-for-local.js"></script>
+</body>
+</html>

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <base data-ice="baseUrl" href="../../">
+  <title data-ice="title">src/index.js | API Document</title>
+  <link type="text/css" rel="stylesheet" href="css/style.css">
+  <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
+  <script src="script/prettify/prettify.js"></script>
+  
+  
+  <script src="script/manual.js"></script>
+</head>
+<body class="layout-container" data-ice="rootContainer">
+
+<header>
+  <a href="./">Home</a>
+  
+  <a href="identifiers.html">Reference</a>
+  <a href="source.html">Source</a>
+  <a href="test.html" data-ice="testLink">Test</a>
+  <a data-ice="repoURL" href="https://github.com/moqada/5rolli-workflowy2trello.git" class="repo-url-github">Repository</a>
+  <div class="search-box">
+  <span>
+    <img src="./image/search.png">
+    <span class="search-input-edge"></span><input class="search-input"><span class="search-input-edge"></span>
+  </span>
+    <ul class="search-result"></ul>
+  </div>
+</header>
+
+<nav class="navigation" data-ice="nav"><div>
+  <ul>
+    
+  <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-opmlToStories">opmlToStories</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-sendTrello">sendTrello</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-storiesToCards">storiesToCards</a></span></span></li>
+</ul>
+</div>
+</nav>
+
+<div class="content" data-ice="content"><h1 data-ice="title">src/index.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import Trello from &apos;node-trello&apos;;
+
+
+/**
+ * Parse Error
+ */
+class ParseError extends Error {
+  /**
+   * constructor
+   *
+   * @param {string} type error type
+   * @param {string} message error message
+   * @param {string} text raw text
+   */
+  constructor({type, message, text}) {
+    super(`(${type}): ${message} &quot;${text}&quot;`);
+    this.name = this.constructor.name;
+    this.type = type;
+    this.text = text;
+    Error.captureStackTrace(this, this.constructor.name);
+  }
+}
+
+
+/**
+ * Create name for Trello card
+ *
+ * @param {Object} story story
+ * @return {string}
+ */
+function createCardName(story) {
+  const items = [`${story.id}:`];
+  if (story.times) {
+    const timeStr = [story.times.spent, story.times.es50, story.times.es90]
+      .filter(i =&gt; i !== undefined)
+      .map(i =&gt; i.toString())
+      .join(&apos;/&apos;);
+    if (timeStr) {
+      items.push(`(${timeStr})`);
+    }
+  }
+  items.push(`${story.title}`);
+  if (story.parentId) {
+    items.push(`#${story.parentId}`);
+  }
+  if (story.dependIds.length &gt; 0) {
+    items.push(`${story.dependIds.map(i =&gt; `&amp;${i}`).join(&apos; &apos;)}`);
+  }
+  return items.join(&apos; &apos;);
+}
+
+
+/**
+ * is Story
+ *
+ * @param {string} text text
+ * @return {boolean}
+ */
+function isStory(text) {
+  return /^#(\d+)_/.test(text);
+}
+
+
+/**
+ * Parse text to times
+ *
+ * @param {string} text title text
+ * @return {Object}
+ */
+function parseTextToTimes(text) {
+  const match = /(?:\((?:(\d+)\/)?(\d+)\/(\d+)\)\s+)?(.*)$/.exec(text);
+  if (match) {
+    const [spent, es50, es90, body] = match.slice(1);
+    return {
+      body: body.trim(),
+      times: {
+        spent: spent &amp;&amp; Number.parseInt(spent, 10),
+        es50: es50 &amp;&amp; Number.parseInt(es50, 10),
+        es90: es90 &amp;&amp; Number.parseInt(es90, 10)
+      }
+    };
+  }
+  return {
+    body: text.trim(),
+    times: null
+  };
+}
+
+
+/**
+ * Parse text to labels
+ *
+ * must to use after parseTextToTimes()
+ *
+ * @param {string} text title text
+ * @return {Object}
+ */
+function parseTextToLabels(text) {
+  const matches = /^(?:\[(.+)\]\s+)?(.*)$/.exec(text);
+  if (!matches) {
+    return {
+      body: text.trim(),
+      labels: []
+    };
+  }
+  const [labels, body] = matches.slice(1);
+  return {
+    body: body.trim(),
+    labels: labels ? labels.split(&apos;,&apos;).map(l =&gt; l.trim()).filter(l =&gt; l) : []
+  };
+}
+
+
+/**
+ * Parse text to raw story object
+ *
+ * @param {string} text text
+ * @return {Object}
+ */
+function parseTextToStory(text) {
+  const matches = /^#(\d+)_\s+(.+)$/.exec(text);
+  if (matches) {
+    const [id, content] = matches.slice(1);
+    const regex = /#(\d+)_/g;
+    const idx = content.search(regex);
+    const title = idx &gt;= 0 ? content.slice(0, idx).trim() : content;
+    const {body, times} = parseTextToTimes(title);
+    const ret = parseTextToLabels(body);
+    return {
+      id,
+      title: ret.body,
+      times,
+      labels: ret.labels,
+      dependIds: (content.match(regex) || []).map(i =&gt; i.match(/\d+/)[0])
+    };
+  }
+  return {
+    id: null,
+    title: text,
+    times: null,
+    labels: [],
+    dependIds: []
+  };
+}
+
+
+/**
+ * Parse Item to Story
+ *
+ * @param {Object} item item
+ * @return {Array} current story and descendants stories
+ */
+function parseOpmlItem(item) {
+  const parsedItem = parseTextToStory(item.text);
+  if (!parsedItem.id &amp;&amp; isStory(item.text)) {
+    throw new ParseError({
+      type: &apos;item&apos;,
+      message: &apos;invalid&apos;,
+      text: item.text
+    });
+  }
+  const children = item.children || [];
+  let descendants = [];
+  let descriptions = [];
+  children.forEach(child =&gt; {
+    const [parsedChild, ds] = parseOpmlItem(child);
+    if (parsedChild.id) {
+      parsedChild.parentId = parsedItem.id;
+      descendants = descendants.concat([parsedChild]).concat(ds);
+    } else {
+      descriptions = descriptions.concat(
+        [`- ${parsedChild.title}`]
+      ).concat(
+        parsedChild.description.split(&apos;\n&apos;).filter(d =&gt; d).map(d =&gt; `  ${d}`)
+      );
+    }
+  });
+  const ret = Object.assign({}, parsedItem, {
+    description: descriptions.join(&apos;\n&apos;)
+  });
+  return [ret, descendants];
+}
+
+
+/**
+ * opmlToStories
+ *
+ * @param {Object} opmlJSON opml object
+ * @return {Promise&lt;Object[], ParseError[]&gt;}
+ */
+export function opmlToStories(opmlJSON) {
+  const errors = [];
+  const stories = opmlJSON.children.reduce((results, item) =&gt; {
+    try {
+      const [parsed, ds] = parseOpmlItem(item);
+      return results.concat([parsed]).concat(ds);
+    } catch (e) {
+      if (e.type) {
+        errors.push(e);
+      } else {
+        throw e;
+      }
+    }
+    return results;
+  }, []);
+  if (errors.length) {
+    return Promise.reject(errors);
+  }
+  return Promise.resolve(stories);
+}
+
+
+/**
+ * Stories To Cards
+ *
+ * @param {Object[]} stories stories
+ * @param {Object} config config
+ * @return {Promise&lt;Object[], ParseError[]&gt;}
+ */
+export function storiesToCards(stories, config) {
+  const errors = [];
+  const cards = stories.map(story =&gt; {
+    let labels = story.parentId ? [] : [config.labels.issue];
+    labels = labels.concat(story.labels.map(l =&gt; config.labelAliases[l]));
+    return {
+      name: createCardName(story),
+      desc: story.description,
+      labels: labels.concat(config.labels.open)
+    };
+  });
+  if (errors.length) {
+    return Promise.reject(errors, cards);
+  }
+  return Promise.resolve(cards);
+}
+
+
+/**
+ * fetch Board data from Trello
+ *
+ * @param {Object} trello Trello instance
+ * @param {string} boardId Trello board ID
+ * @return {Promise&lt;Object, Error&gt;}
+ */
+function fetchBoardInfo(trello, boardId) {
+  return new Promise((resolve, reject) =&gt; {
+    trello.get(`/1/boards/${boardId}`, {
+      labels: &apos;all&apos;,
+      lists: &apos;open&apos;
+    }, (err, data) =&gt; {
+      if (err) {
+        return reject(err);
+      }
+      resolve(data);
+    });
+  });
+}
+
+
+/**
+ * Post Card to Trello
+ *
+ * @param {Object} trello Trello instance
+ * @param {Object} card card
+ * @return {Promise&lt;Object, Error&gt;}
+ */
+function postCard(trello, card) {
+  return new Promise((resolve, reject) =&gt; {
+    trello.post(`/1/cards`, card, (err, data) =&gt; {
+      if (err) {
+        return reject(err);
+      }
+      resolve(data);
+    });
+  });
+}
+
+
+/**
+ * Register cards to Trello
+ *
+ * @param {Object[]} cards card list
+ * @param {Object} config config
+ * @param {boolean} dryRun flag
+ * @return {Promise&lt;Object, Error&gt;}
+ */
+export function sendTrello(cards, config, dryRun) {
+  const trello = new Trello(config.apiKey, config.apiToken);
+  const promise = fetchBoardInfo(trello, config.boardId).then(board =&gt; {
+    const labelMap = board.labels.reduce((m, l) =&gt; {
+      if (!l.name) {
+        return m;
+      }
+      return Object.assign({}, m, {[l.name]: l.id});
+    }, {});
+    const inboxList = board.lists.find(l =&gt; l.name === config.inboxListName);
+    return cards.map(c =&gt; {
+      const idLabels = c.labels.map(l =&gt; labelMap[l]);
+      if (idLabels.indexOf(undefined) &gt;= 0) {
+        throw new Error(`Label id not found: ${c.labels}`);
+      }
+      return Object.assign({}, c, {
+        due: null,
+        urlSource: null,
+        idLabels: idLabels.join(&apos;,&apos;),
+        idList: inboxList.id,
+        labels: undefined
+      });
+    });
+  });
+  if (dryRun) {
+    return promise.then(validCards =&gt; {
+      return {
+        validCards,
+        responses: []
+      };
+    });
+  }
+  return promise.then(validCards =&gt; {
+    const results = [];
+    let pr = Promise.resolve();
+    validCards.forEach(c =&gt; {
+      pr = pr.then(res =&gt; {
+        results.push(res);
+        return postCard(trello, c);
+      });
+    });
+    return pr.then(() =&gt; {
+      return {
+        validCards,
+        responses: results
+      };
+    });
+  });
+}
+</code></pre>
+
+</div>
+
+<footer class="footer">
+  Generated by <a href="https://esdoc.org">ESDoc<span data-ice="esdocVersion">(0.4.3)</span></a>
+</footer>
+
+<script src="script/search_index.js"></script>
+<script src="script/search.js"></script>
+<script src="script/pretty-print.js"></script>
+<script src="script/inherited-summary.js"></script>
+<script src="script/test-summary.js"></script>
+<script src="script/inner-link.js"></script>
+<script src="script/patch-for-local.js"></script>
+</body>
+</html>
