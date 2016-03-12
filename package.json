@@ -25,7 +25,7 @@
     "codecov.io": "^0.1.6",
     "esdoc": "^0.4.3",
     "eslint": "^1.10.1",
-    "eslint-config-moqada": "^10.0.0",
+    "eslint-config-moqada": "^12.0.1",
     "gh-pages": "^0.10.0",
     "isparta": "^4.0.0",
     "mocha": "^2.3.4",
