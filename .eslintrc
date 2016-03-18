@@ -1,1 +1,3 @@
-extends: moqada/cli
+extends:
+  - moqada
+  - moqada/cli
