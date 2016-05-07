@@ -18,7 +18,7 @@
   "devDependencies": {
     "babel-cli": "^6.2.0",
     "babel-core": "^6.2.1",
-    "babel-plugin-add-module-exports": "^0.1.1",
+    "babel-plugin-add-module-exports": "^0.2.0",
     "babel-plugin-espower": "^2.0.0",
     "babel-preset-es2015": "^6.1.18",
     "chokidar-cli": "^1.2.0",
