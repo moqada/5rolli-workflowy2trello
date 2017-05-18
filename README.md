@@ -1,5 +1,7 @@
 # 5rolli-workflowy2trello
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/moqada/5rolli-workflowy2trello.svg)](https://greenkeeper.io/)
+
 [![NPM version][npm-image]][npm-url]
 [![NPM downloads][npm-download-image]][npm-download-url]
 [![Build Status][travis-image]][travis-url]
